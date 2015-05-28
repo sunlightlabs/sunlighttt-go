@@ -70,6 +70,11 @@ func sponsorName(bill *congress.Bill) string {
 		bill.Sponsor.FirstName + " " + bill.Sponsor.LastName
 }
 
+func personName(who *congress.Legislator) string {
+	return who.Title + ". " +
+		who.FirstName + " " + who.LastName
+}
+
 func parseTime(date string) (time.Time, error) {
 	est, err := time.LoadLocation("America/New_York")
 	if err != nil {
