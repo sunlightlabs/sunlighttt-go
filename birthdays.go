@@ -22,6 +22,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 
 	// "errors"
 	"github.com/sunlightlabs/go-sunlight/congress"
@@ -29,6 +30,7 @@ import (
 )
 
 type BirthdaysData struct {
+	birthday        time.Time
 	Age             int    `json:"age"`
 	BirthYear       int    `json:"birth_year"`
 	BirthDay        string `json:"birthday"`
@@ -45,15 +47,28 @@ type Birthdays struct {
 	Data []BirthdaysData `json:"data"`
 }
 
+func (b Birthdays) Len() int {
+	return len(b.Data)
+}
+
+func (b Birthdays) Less(i, j int) bool {
+	return b.Data[i].Meta.Timestamp < b.Data[j].Meta.Timestamp
+	// return b.Data[i].birthday.Before(b.Data[j].birthday)
+}
+
+func (b Birthdays) Swap(i, j int) {
+	b.Data[i], b.Data[j] = b.Data[j], b.Data[i]
+}
+
 type BirthdaysTrigger struct {
 	Trigger
 }
 
 func (trigger BirthdaysTrigger) Handle(fields TriggerFields) (interface{}, error) {
 	people, err := congress.GetLegislators(map[string]string{
-		"fields":   "title,first_name,last_name,state,party,district,birthday,bioguide_id,twitter_id",
-		"order":    "-birthday",
-		"per_page": "all",
+		"fields":    "title,first_name,chamber,last_name,state,party,district,birthday,bioguide_id,twitter_id",
+		"in_office": "true",
+		"per_page":  "all",
 	})
 
 	if err != nil {
@@ -63,11 +78,9 @@ func (trigger BirthdaysTrigger) Handle(fields TriggerFields) (interface{}, error
 	ret := Birthdays{}
 	ret.Data = make([]BirthdaysData, 0)
 	today := time.Now()
+	yesterday := today.Add(-(24 * time.Hour))
 
 	for _, person := range people.Results {
-		if fields.Limit != -1 && len(ret.Data) >= fields.Limit {
-			break
-		}
 		birthday, err := parseTime(person.Birthday)
 		if err != nil {
 			return nil, err
@@ -96,31 +109,38 @@ func (trigger BirthdaysTrigger) Handle(fields TriggerFields) (interface{}, error
 		if cakeDay.After(today) {
 			/* So, they've not had their birthday yet */
 			age = age - 1
+		} else if cakeDay.Before(yesterday) {
+			/* Party's over; sorry! */
+			continue
+		}
+
+		state := person.State
+		if person.Chamber == "house" {
+			state = fmt.Sprintf("%s-%d", person.State, person.District)
 		}
 
 		ret.Data = append(ret.Data, BirthdaysData{
-			Age:          age,
-			BirthYear:    birthday.Year(),
-			BirthDay:     displayDate(birthday),
-			BirthDayDate: person.Birthday,
-			Date: fmt.Sprintf(
-				"%d-%d-%d",
-				cakeDay.Year(),
-				cakeDay.Month(),
-				cakeDay.Day(),
-			),
+			birthday:        cakeDay,
+			Age:             age,
+			BirthYear:       birthday.Year(),
+			BirthDay:        displayDate(birthday),
+			BirthDayDate:    person.Birthday,
+			Date:            cakeDay.Format("2006-01-02"),
 			Name:            personName(&person),
 			Party:           person.Party,
-			State:           fmt.Sprintf("%s-%d", person.State, person.District),
+			State:           state,
 			TwitterUsername: person.TwitterId,
 			Meta: Meta{
-				Id:        fmt.Sprintf("%d/%s", today.Year, person.BioguideId),
+				Id:        fmt.Sprintf("%d/%s", today.Year(), person.BioguideId),
 				Timestamp: cakeDay.Unix(),
 			},
-			/*
-				Meta            Meta   `json:"meta"`
-			*/
 		})
+	}
+
+	sort.Sort(ret)
+
+	if fields.Limit != -1 {
+		ret.Data = ret.Data[:fields.Limit]
 	}
 
 	return ret, nil
