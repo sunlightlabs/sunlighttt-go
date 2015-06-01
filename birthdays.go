@@ -52,7 +52,7 @@ func (b Birthdays) Len() int {
 }
 
 func (b Birthdays) Less(i, j int) bool {
-	return b.Data[i].Meta.Timestamp < b.Data[j].Meta.Timestamp
+	return b.Data[i].Meta.Timestamp > b.Data[j].Meta.Timestamp
 	// return b.Data[i].birthday.Before(b.Data[j].birthday)
 }
 
@@ -78,7 +78,6 @@ func (trigger BirthdaysTrigger) Handle(fields TriggerFields) (interface{}, error
 	ret := Birthdays{}
 	ret.Data = make([]BirthdaysData, 0)
 	today := time.Now()
-	yesterday := today.Add(-(24 * time.Hour))
 
 	for _, person := range people.Results {
 		birthday, err := parseTime(person.Birthday)
@@ -109,9 +108,13 @@ func (trigger BirthdaysTrigger) Handle(fields TriggerFields) (interface{}, error
 		if cakeDay.After(today) {
 			/* So, they've not had their birthday yet */
 			age = age - 1
-		} else if cakeDay.Before(yesterday) {
-			/* Party's over; sorry! */
+		}
+
+		/* Right, actual logic here */
+
+		if cakeDay.After(today) {
 			continue
+			/* Sorry chap, today's not your day */
 		}
 
 		state := person.State
