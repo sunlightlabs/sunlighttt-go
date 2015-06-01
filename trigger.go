@@ -29,7 +29,7 @@ import (
 type TriggerFields struct {
 	TriggerFields struct {
 		Query    string `json:"query"`
-		Location struct {
+		Location *struct {
 			Lat         string `json:"lat"`
 			Lon         string `json:"lon"`
 			Address     string `json:"address"`
@@ -73,6 +73,7 @@ func (trigger *TriggerServer) Handle(req *http.Request) (interface{}, error) {
 	/* Now, let's parse the POST body, which is a JSON data payload */
 	data := TriggerFields{}
 	data.Limit = -1
+	data.TriggerFields.Location = nil
 	err := json.NewDecoder(req.Body).Decode(&data)
 	if err != nil {
 		return nil, err

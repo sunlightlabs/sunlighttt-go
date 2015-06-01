@@ -64,8 +64,7 @@ func main() {
 	server.Register("/ifttt/v1/triggers/new-bills-query", NewBillsQueryTrigger{})
 	server.Register("/ifttt/v1/triggers/new-laws", NewLawsTrigger{})
 	server.Register("/ifttt/v1/triggers/congress-birthdays", BirthdaysTrigger{})
-	// "/ifttt/v1/triggers/new-legislators"
-	// "/ifttt/v1/triggers/congress-birthdays"
+	server.Register("/ifttt/v1/triggers/new-legislators", NewLegislatorsTrigger{})
 
 	mux := http.NewServeMux()
 
